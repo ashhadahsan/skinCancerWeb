@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow.keras.applications.resnet50 import ResNet50
 
 # Load the ResNet50 model architecture from JSON file
 with open("resnet50.json", "r") as json_file:
@@ -14,11 +13,6 @@ input_shape = (224, 224, 3)
 # malignant 1
 
 # Create a new model using the loaded model's input and output
-model = ResNet50(
-    input_tensor=loaded_model.input,
-    weights=None,
-    include_top=True,
-    input_shape=input_shape,
-    pooling="avg",
-    classes=2,
-)
+
+
+model=loaded_model

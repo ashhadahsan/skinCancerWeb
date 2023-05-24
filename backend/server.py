@@ -23,6 +23,7 @@ appointment_col = db["appointments"]
 admins_col.create_index("username", unique=True)
 users_col.create_index("username", unique=True)
 doctors_col.create_index("username", unique=True)
+chat_req_col=db['chat_request']
 import numpy as np
 from PIL import Image
 
@@ -57,11 +58,44 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+class ChatRequest(BaseModel):
+    patient:str
+    doctor:str
+    date:str
+    chat_room_id:str
+
+@app.post("/chatrequest")
+def create_chat_request(chat_request: ChatRequest):
+    today = datetime.now().strftime("%Y-%m-%d")
+
+    if chat_request.date < today:
+        raise HTTPException(status_code=400, detail="Cannot create a chat request for a past date.")
+
+    existing_request = chat_req_col.find_one({"date": chat_request.date, "patient": chat_request.patient})
+    if existing_request:
+        raise HTTPException(status_code=400, detail="You have already made a chat request for this date.")
+
+    chat_request_dict = chat_request.dict()
+    chat_req_col.insert_one(chat_request_dict)
+    return {"status":"OK"}
+
+@app.get("/chatrequest/today/{doctor}")
+def get_chat_requests_today(doctor: str):
+    today = datetime.now().strftime("%Y-%m-%d")
+    chat_requests = chat_req_col.find({"doctor": doctor, "date": today})
+
+    patient_names = [{request["patient"],request['chat_room_id']} for request in chat_requests]
+    return {"patients": patient_names}
 
 def create_admin(username: str, password: str):
     hashed_password = bcrypt.hash(password)
     admin = {"username": username, "password": hashed_password}
     admins_col.insert_one(admin)
+
+def create_cr(patient: str, doctor: str,date:str):
+    
+    req = {"patient": patient, "doctor": doctor,'date':date}
+    chat_req_col.insert_one(req)
 
 
 def login_admin(username: str, password: str) -> bool:
@@ -130,6 +164,25 @@ def get_count_doctors():
 
 def get_all_doctorRecords() -> List[Dict]:
     users = doctors_col.find(
+        {},
+        {
+            "username": 1,
+            "fullname": 1,
+            "_id": 0,
+        },
+    )
+    user_list = [
+        {
+            "username": user["username"],
+            "fullname": user["fullname"],
+        }
+        for user in users
+    ]
+    return user_list
+
+
+def get_all_patientRecords() -> List[Dict]:
+    users = users_col.find(
         {},
         {
             "username": 1,
@@ -234,6 +287,12 @@ def create_admin_pls(admin: Admin):
     return {"message": "Admin created successfully"}
 
 
+@app.post("chatRequest/{username}/{doctor}")
+def mke_cr(cr:ChatRequest):
+    pass
+
+    
+
 @app.post("/appointment")
 async def create_appointment(appointment: Appointment):
     appointment_data = appointment.dict()
@@ -313,6 +372,11 @@ def getAll():
 def getAll():
     users = get_all_doctorRecords()
     return {"doctors": users}
+
+@app.get("/patient/getAll", status_code=200)
+def getAll():
+    users = get_all_patientRecords()
+    return {"patient": users}
 
 
 @app.get("/user/getAll", status_code=200)

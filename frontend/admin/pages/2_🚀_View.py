@@ -28,6 +28,18 @@ def get_doctors():
         return False
 
 
+def get_patients():
+    url = "http://127.0.0.1:8000/patient/getAll"
+
+    headers = {}
+    payload = {}
+
+    response = requests.request("GET", url, headers=headers, data=payload)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return False
+
 def get_appointments():
     url = "http://127.0.0.1:8000/appointments"
 
@@ -44,6 +56,7 @@ try:
         st.title("Appointments")
         doctor = pd.DataFrame(get_doctors()["doctors"])
         appointments = pd.DataFrame(get_appointments())
+        patients=pd.DataFrame(get_patients()['patient'])
         try:
             df = pd.merge(
                 left=doctor,
@@ -52,7 +65,13 @@ try:
                 right_on="doctor",
                 how="inner",
             ).drop(["username", "_id", "doctor"], axis=1)
+            
             df.columns = ["Doctor Name", "Patients", "Date"]
+            df=pd.merge(df,patients,left_on="Patients",right_on="username").drop(['username','Patients'],axis=1)
+            df.columns=['Doctor Name','Date','Patient Name']
+            df=df[['Doctor Name','Patient Name','Date']]
+            
+            
             hide_table_row_index = """
                 <style>
                 thead tr th:first-child {display:none}
@@ -63,7 +82,8 @@ try:
             # Inject CSS with Markdown
             st.markdown(hide_table_row_index, unsafe_allow_html=True)
             st.table(df)
-        except KeyError:
+        except KeyError as e:
+            st.excepton(e)
             st.info("No appointments")
 
     if st.sidebar.button("Logout"):

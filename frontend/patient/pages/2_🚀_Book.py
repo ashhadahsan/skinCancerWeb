@@ -25,7 +25,6 @@ def check_cancer(img_path):
 
     response = requests.request("POST", url, headers=headers, data=payload)
     if response.status_code == 200:
-        st.write(response.json())
 
         return response.json()["needs_doctor"]
 

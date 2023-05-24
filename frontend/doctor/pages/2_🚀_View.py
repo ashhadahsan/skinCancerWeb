@@ -25,16 +25,31 @@ def get_history(username: str):
     print(response.json())
 
     return response.json()
+def get_patients():
+    url = "http://127.0.0.1:8000/patient/getAll"
 
+    headers = {}
+    payload = {}
+
+    response = requests.request("GET", url, headers=headers, data=payload)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return False
 
 try:
     if st.session_state.auth:
         st.title("Appointments")
+        patient=pd.DataFrame(get_patients()['patient'])
         try:
             dataframe = pd.DataFrame(get_history(st.session_state.username)).drop(
                 ["_id", "doctor"], axis=1
             )
             dataframe.columns = ["Patient Name", "Date of Appointment"]
+            dataframe=pd.merge(left=dataframe,right=patient,left_on="Patient Name",right_on="username").drop(['username','Patient Name'],axis=1)
+            dataframe.columns=['Date','Patient Name']
+            dataframe=dataframe[['Patient Name','Date']]
+
             hide_table_row_index = """
                 <style>
                 thead tr th:first-child {display:none}

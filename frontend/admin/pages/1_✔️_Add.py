@@ -65,7 +65,7 @@ try:
                     username=username, password=password, fullname=fullname.title()
                 )
                 if add:
-                    st.success("User created")
+                    st.success("Doctor added")
                 else:
                     st.error("User already exists")
         if st.sidebar.button("Logout"):

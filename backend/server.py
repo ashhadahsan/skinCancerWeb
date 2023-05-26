@@ -1,11 +1,9 @@
-from fastapi import FastAPI, HTTPException, Form, File
+from fastapi import FastAPI, HTTPException
 from typing import List, Dict
 from datetime import datetime
-from typing import List
-from pydantic import BaseModel, Field
-from typing import Annotated
+from pydantic import BaseModel
 from load_model import model
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI
 
 app = FastAPI()
 
@@ -23,7 +21,7 @@ appointment_col = db["appointments"]
 admins_col.create_index("username", unique=True)
 users_col.create_index("username", unique=True)
 doctors_col.create_index("username", unique=True)
-chat_req_col=db['chat_request']
+chat_req_col = db["chat_request"]
 import numpy as np
 from PIL import Image
 
@@ -58,43 +56,115 @@ class UserLogin(BaseModel):
     username: str
     password: str
 
+
 class ChatRequest(BaseModel):
-    patient:str
-    doctor:str
-    date:str
-    chat_room_id:str
+    patient: str
+    doctor: str
+    date: str
+    chat_room_id: str
+    accepted: bool = False
+
+
+class ChatModel(BaseModel):
+    from_text: str
+    to_text: str
+    text: str
+    room_id: str
+
+
+from bson.json_util import dumps, loads
+
+
+@app.post("/create_chat")
+def create_chat(chat: ChatModel):
+    chat_col = db[chat.room_id]
+    chat_dict = {
+        "from_text": chat.from_text,
+        "to_text": chat.to_text,
+        "text": chat.text,
+    }
+    result = chat_col.insert_one(chat_dict)
+    return {"message": "Chat created successfully", "chat_id": str(result.inserted_id)}
+
+
+@app.get("/latest_message/{room_id}")
+def get_latest_message(room_id: str):
+    collection = db[room_id]
+    message = collection.find_one({}, sort=[("_id", -1)])
+
+    try:
+        print(loads(dumps(message)))
+        message = loads(dumps(message))["text"]
+        from_text = loads(dumps(message))["from_text"]
+        to_text = loads(dumps(message))["to_text"]
+        print(message)
+        return {"text": message, "from_text": from_text, "to_text": to_text}
+    except Exception as e:
+        raise HTTPException(404, detail=e)
+
+
+@app.put("/update_accepted_status")
+def update_accepted_status(chat_request: ChatRequest):
+    query = {"patient": chat_request.patient}
+    update = {"$set": {"accepted": True}}
+    chat_req_col.update_one(query, update)
+    return {"message": "Accepted status updated successfully"}
+
 
 @app.post("/chatrequest")
 def create_chat_request(chat_request: ChatRequest):
     today = datetime.now().strftime("%Y-%m-%d")
 
     if chat_request.date < today:
-        raise HTTPException(status_code=400, detail="Cannot create a chat request for a past date.")
+        raise HTTPException(
+            status_code=400, detail="Cannot create a chat request for a past date."
+        )
 
-    existing_request = chat_req_col.find_one({"date": chat_request.date, "patient": chat_request.patient})
+    existing_request = chat_req_col.find_one(
+        {"date": chat_request.date, "patient": chat_request.patient}
+    )
     if existing_request:
-        raise HTTPException(status_code=400, detail="You have already made a chat request for this date.")
+        raise HTTPException(
+            status_code=400,
+            detail="You have already made a chat request for this date.",
+        )
 
     chat_request_dict = chat_request.dict()
     chat_req_col.insert_one(chat_request_dict)
-    return {"status":"OK"}
+    return {"status": "OK"}
+
 
 @app.get("/chatrequest/today/{doctor}")
 def get_chat_requests_today(doctor: str):
     today = datetime.now().strftime("%Y-%m-%d")
     chat_requests = chat_req_col.find({"doctor": doctor, "date": today})
 
-    patient_names = [{request["patient"],request['chat_room_id']} for request in chat_requests]
-    return {"patients": patient_names}
+    patient_names = [
+        {"patient": request["patient"], "room_id": request["chat_room_id"]}
+        for request in chat_requests
+    ]
+    print(patient_names)
+    return {"req": patient_names}
+
+
+@app.get("/chatrequest/status/{user_id}")
+def get_chat_requests_today(user_id: str):
+    today = datetime.now().strftime("%Y-%m-%d")
+    chat_requests = chat_req_col.find({"patient": user_id, "date": today})
+
+    patient_names = [{"accepted": request["accepted"]} for request in chat_requests]
+    print(patient_names)
+    return {"response": patient_names}
+
 
 def create_admin(username: str, password: str):
     hashed_password = bcrypt.hash(password)
     admin = {"username": username, "password": hashed_password}
     admins_col.insert_one(admin)
 
-def create_cr(patient: str, doctor: str,date:str):
-    
-    req = {"patient": patient, "doctor": doctor,'date':date}
+
+def create_cr(patient: str, doctor: str, date: str):
+    req = {"patient": patient, "doctor": doctor, "date": date}
     chat_req_col.insert_one(req)
 
 
@@ -121,9 +191,6 @@ def create_user(
         "date_of_birth": dob,
     }
     users_col.insert_one(user)
-
-
-import uuid
 
 
 @app.post("/upload/image")
@@ -288,10 +355,9 @@ def create_admin_pls(admin: Admin):
 
 
 @app.post("chatRequest/{username}/{doctor}")
-def mke_cr(cr:ChatRequest):
+def mke_cr(cr: ChatRequest):
     pass
 
-    
 
 @app.post("/appointment")
 async def create_appointment(appointment: Appointment):
@@ -372,6 +438,7 @@ def getAll():
 def getAll():
     users = get_all_doctorRecords()
     return {"doctors": users}
+
 
 @app.get("/patient/getAll", status_code=200)
 def getAll():

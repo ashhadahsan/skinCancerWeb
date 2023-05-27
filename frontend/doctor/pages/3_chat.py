@@ -13,8 +13,23 @@ st.set_page_config(
 )
 st.sidebar.success(body="View Users")
 remove_header_footer()
+from streamlit_chat_media import message
 
 from streamlit_custom_notification_box import custom_notification_box
+
+
+if "ready" not in st.session_state:
+    st.session_state["ready"] = False
+if "user_input" not in st.session_state:
+    st.session_state.user_input = None
+if "generated" not in st.session_state:
+    st.session_state["generated"] = ["Hi"]
+if "past" not in st.session_state:
+    st.session_state["past"] = ["Hello"]
+if "chat_room_id" not in st.session_state:
+    st.session_state["chat_room_id"] = ""
+if "to" not in st.session_state:
+    st.session_state.to = ""
 
 
 def get_chat_requests():
@@ -38,27 +53,86 @@ import datetime
 
 def accept_request(
     chat_room_id: str,
-    patient,
-    doctor,
-    date: str = datetime.datetime.now().strftime(r"%Y-%m-%d"),
-    accepted=True,
 ):
-    url = "http://127.0.0.1:8000/update_accepted_status"
+    url = f"http://127.0.0.1:8000/update_accepted/{chat_room_id}?accepted=true"
 
-    payload = json.dumps(
-        {
-            "patient": patient,
-            "doctor": doctor,
-            "date": date,
-            "chat_room_id": chat_room_id,
-            "accepted": accepted,
-        }
-    )
-    headers = {"accept": "application/json", "Content-Type": "application/json"}
+    payload = {}
+    headers = {"accept": "application/json"}
 
     response = requests.request("PUT", url, headers=headers, data=payload)
     if response.status_code == 200:
         return True
+    else:
+        return False
+
+
+def recieve_message(room_id: str):
+    url = f"http://127.0.0.1:8000/latest_message/{room_id}"
+
+    payload = {}
+    headers = {"accept": "application/json"}
+
+    response = requests.request("GET", url, headers=headers, data=payload)
+    if response.status_code == 200:
+        data = response.json()
+        if data["to_text"] == st.session_state.username:
+            st.session_state["generated"].append(data["text"])
+
+
+def send_message(from_text, to_text, text, room_id):
+    url = "http://127.0.0.1:8000/create_chat"
+
+    payload = json.dumps(
+        {"from_text": from_text, "to_text": to_text, "text": text, "room_id": room_id}
+    )
+    headers = {"accept": "application/json", "Content-Type": "application/json"}
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+
+    if response.status_code == 200:
+        st.session_state["past"].append(text)
+
+
+def chat():
+    response_container = st.container()
+    recieve_message(st.session_state.chat_room_id)
+
+    # container for text box
+    empty = st.empty()
+
+    # with container:
+    user_input = st.text_input(
+        "Query:",
+        placeholder="e.g: How many rows?",
+        key="input",
+    )
+    if user_input:
+        with st.spinner(text=""):
+            send_message(
+                from_text=st.session_state.username,
+                to_text=st.session_state.to,
+                text=user_input,
+                room_id=st.session_state["chat_room_id"],
+            )
+            recieve_message(st.session_state.chat_room_id)
+
+    if st.session_state["generated"]:
+        with response_container:
+            for i in range(len(st.session_state["past"])):
+                message(
+                    st.session_state["past"][i],
+                    is_user=True,
+                    key=str(i) + "_user",
+                    avatar_style="thumbs",
+                    allow_html=True,
+                )
+            for i in range(len(st.session_state["generated"])):
+                message(
+                    st.session_state["generated"][i],
+                    key=str(i),
+                    avatar_style="bottts",
+                    allow_html=True,
+                )
 
 
 styles = {
@@ -75,29 +149,36 @@ try:
         st.title("Chat Requests")
 
         patient, room = get_chat_requests()
-        try:
-            index = st.selectbox(
-                "Doctor", range(len(patient)), format_func=lambda x: patient[x]
-            )
+        index = st.selectbox(
+            "Doctor", range(len(patient)), format_func=lambda x: patient[x]
+        )
 
-            if st.button("Accept"):
+        if st.button("Accept"):
+            try:
                 patient_name = patient[index]
                 room_id = room[index]
-                accept_request(
-                    room_id, patient=patient_name, doctor=st.session_state.username
-                )
+                accept_request(room_id)
+                st.session_state.chat_room_id = room_id
+                st.session_state.to = patient_name
+                st.session_state.ready = True
+            except:
+                pass
+        if st.session_state.ready:
+            chat()
+            # if "generated" not in st.session_state:
+            #     st.session_state["generated"] = ["Hello"]
+            # if "past" not in st.session_state:
+            #     st.session_state["past"] = ["Hi"]
 
-        except KeyError:
-            st.info("No Appointments yet")
-        for x in patient:
-            custom_notification_box(
-                icon="info",
-                textDisplay=f"New chat request from {x}",
-                url="#",
-                externalLink="",
-                styles=styles,
-                key="foo",
-            )
+        # for x in patient:
+        #     custom_notification_box(
+        #         icon="info",
+        #         textDisplay=f"New chat request from {x}",
+        #         url="#",
+        #         externalLink="",
+        #         styles=styles,
+        #         key="foo",
+        #     )
 
     if st.sidebar.button("Logout"):
         st.session_state["loggedin"] = False

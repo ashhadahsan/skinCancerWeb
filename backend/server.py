@@ -4,6 +4,8 @@ from datetime import datetime
 from pydantic import BaseModel
 from load_model import model
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import HTTPException
 
 app = FastAPI()
 
@@ -91,24 +93,72 @@ def create_chat(chat: ChatModel):
 def get_latest_message(room_id: str):
     collection = db[room_id]
     message = collection.find_one({}, sort=[("_id", -1)])
-
     try:
-        print(loads(dumps(message)))
-        message = loads(dumps(message))["text"]
-        from_text = loads(dumps(message))["from_text"]
-        to_text = loads(dumps(message))["to_text"]
-        print(message)
-        return {"text": message, "from_text": from_text, "to_text": to_text}
-    except Exception as e:
-        raise HTTPException(404, detail=e)
+        return {
+            "text": loads(dumps(message))["text"],
+            "from_text": loads(dumps(message))["from_text"],
+            "to_text": loads(dumps(message))["to_text"],
+        }
+    except Exception:
+        raise HTTPException(status_code=404, detail={"no messages": True})
+
+    # try:
+    #     print(loads(dumps(message)))
+    #     message = loads(dumps(message))["text"]
+    #     from_text = loads(dumps(message))["from_text"]
+    #     to_text = loads(dumps(message))["to_text"]
+    #     print(message)
+    #     return {"text": message, "from_text": from_text, "to_text": to_text}
+    # except Exception as e:
+    #     raise HTTPException(404, detail=e)
 
 
-@app.put("/update_accepted_status")
-def update_accepted_status(chat_request: ChatRequest):
-    query = {"patient": chat_request.patient}
-    update = {"$set": {"accepted": True}}
-    chat_req_col.update_one(query, update)
-    return {"message": "Accepted status updated successfully"}
+# @app.put("/update_accepted_status")
+# def update_accepted_status(chat_request: ChatRequest):
+#     query = {"patient": chat_request.patient}
+#     update = {"$set": {"accepted": True}}
+#     chat_req_col.update_one(query, update)
+#     return {"message": "Accepted status updated successfully"}
+
+
+@app.put("/update_accepted/{chat_room_id}")
+def update_accepted_status(chat_room_id: str, accepted: bool = True):
+    # Update the accepted status based on chat_room_id
+    result = chat_req_col.update_one(
+        {"chat_room_id": chat_room_id}, {"$set": {"accepted": accepted}}
+    )
+
+    if result.modified_count > 0:
+        db[chat_room_id]
+
+        return {"message": "Accepted status updated successfully."}
+    else:
+        return {"message": "No matching document found for the provided chat_room_id."}
+
+
+@app.get("/get_accepted/{chat_room_id}")
+def get_accepted_status(chat_room_id: str):
+    # Retrieve the updated accepted status based on chat_room_id
+    chat_request = chat_req_col.find_one({"chat_room_id": chat_room_id})
+
+    if chat_request:
+        accepted_status = chat_request.get("accepted")
+        if accepted_status == True:
+            return JSONResponse(
+                {"chat_room_id": chat_room_id, "accepted": accepted_status},
+                status_code=200,
+            )
+        else:
+            return JSONResponse(
+                {"chat_room_id": chat_room_id, "accepted": accepted_status},
+                status_code=403,
+            )
+
+    else:
+        return JSONResponse(
+            {"status": "error"},
+            status_code=404,
+        )
 
 
 @app.post("/chatrequest")
@@ -147,14 +197,13 @@ def get_chat_requests_today(doctor: str):
     return {"req": patient_names}
 
 
-@app.get("/chatrequest/status/{user_id}")
-def get_chat_requests_today(user_id: str):
-    today = datetime.now().strftime("%Y-%m-%d")
-    chat_requests = chat_req_col.find({"patient": user_id, "date": today})
-
-    patient_names = [{"accepted": request["accepted"]} for request in chat_requests]
-    print(patient_names)
-    return {"response": patient_names}
+# @app.get("/chatrequest/status/{user_id}")
+# def get_chat_requests_today(user_id: str):
+#     today = datetime.now().strftime("%Y-%m-%d")
+#     chat_requests = chat_req_col.find({"patient": user_id, "date": today})
+#     patient_names = [{"accepted": request["accepted"]} for request in chat_requests]
+#     print(patient_names)
+#     return {"response": patient_names}
 
 
 def create_admin(username: str, password: str):
@@ -352,11 +401,6 @@ def create_admin_pls(admin: Admin):
         raise HTTPException(status_code=400, detail="Username already taken")
     create_admin(admin.username, admin.password)
     return {"message": "Admin created successfully"}
-
-
-@app.post("chatRequest/{username}/{doctor}")
-def mke_cr(cr: ChatRequest):
-    pass
 
 
 @app.post("/appointment")

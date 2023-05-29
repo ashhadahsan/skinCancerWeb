@@ -11,7 +11,7 @@ st.set_page_config(
     page_icon="🧊",
     initial_sidebar_state="expanded",
 )
-st.sidebar.success(body="View Users")
+# st.sidebar.success(body="View Users")
 remove_header_footer()
 
 

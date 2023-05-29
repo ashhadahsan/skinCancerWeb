@@ -112,6 +112,24 @@ def get_latest_message(room_id: str, from_text: Optional[str] = None):
     }
 
 
+@app.get("/messages/{room_id}/{from_text}")
+def get_messages_by_from_text(from_text: str, room_id):
+    messages = []
+
+    collection = db[room_id]
+    query = {"from_text": from_text}
+    cursor = collection.find(query)
+
+    for message in cursor:
+        messages.append(
+            message["text"],
+        )
+    if messages:
+        return {"messages": messages}
+    else:
+        raise HTTPException(status_code=404, detail={"no messages": True})
+
+
 # @app.get("/latest_message/{room_id}")
 # def get_latest_message(room_id: str):
 #     collection = db[room_id]

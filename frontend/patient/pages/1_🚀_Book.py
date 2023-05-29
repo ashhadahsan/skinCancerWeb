@@ -4,7 +4,7 @@ import requests
 import pandas as pd
 from utils.ui import header, remove_header_footer
 from streamlit_extras.switch_page_button import switch_page
-from streamlit_chat_media import message
+from streamlit_chat import message
 
 st.set_page_config(
     layout="wide",
@@ -119,18 +119,33 @@ def make_chat_request(
         return False
 
 
+# def recieve_message(room_id: str):
+#     url = f"http://127.0.0.1:8000/latest_message/{room_id}?from_text={st.session_state.doctorname}"
+
+#     payload = {}
+#     headers = {"accept": "application/json"}
+
+#     response = requests.request("GET", url, headers=headers, data=payload)
+#     if response.status_code == 200:
+#         data = response.json()
+#         print(data)
+#         if data["text"] not in st.session_state.generated:
+#             st.session_state["generated"].append(data["text"])
+
+
 def recieve_message(room_id: str):
-    url = f"http://127.0.0.1:8000/latest_message/{room_id}?from_text={st.session_state.doctorname}"
+    url = f"http://localhost:8000/messages/{room_id}/{st.session_state.doctorname}"
 
     payload = {}
     headers = {"accept": "application/json"}
 
     response = requests.request("GET", url, headers=headers, data=payload)
     if response.status_code == 200:
-        data = response.json()
-        print(data)
-        if data["text"] not in st.session_state.generated:
-            st.session_state["generated"].append(data["text"])
+        print(response.json())
+        messages = response.json()["messages"]
+        result = [x for x in messages if x not in st.session_state.generated]
+        for x in result:
+            st.session_state.generated.append(x)
 
 
 def send_message(from_text, to_text, text, room_id):
@@ -153,8 +168,7 @@ def chat():
 
     # with container:
     user_input = st.text_input(
-        "Query:",
-        placeholder="e.g: How many rows?",
+        "You:",
         key="input",
     )
     if user_input:
@@ -175,14 +189,12 @@ def chat():
                     is_user=True,
                     key=str(i) + "_user",
                     avatar_style="thumbs",
-                    allow_html=True,
                 )
             for i in range(len(st.session_state["generated"])):
                 message(
                     st.session_state["generated"][i],
                     key=str(i),
                     avatar_style="bottts",
-                    allow_html=True,
                     is_user=False,
                 )
 

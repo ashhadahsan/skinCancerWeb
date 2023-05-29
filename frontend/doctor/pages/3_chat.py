@@ -104,7 +104,7 @@ def accept_request(
 
 
 def recieve_message(room_id: str):
-    url = f"http://127.0.0.1:8000/latest_message/{room_id}"
+    url = f"http://127.0.0.1:8000/latest_message/{room_id}?from_text={st.session_state.to}"
 
     payload = {}
     headers = {"accept": "application/json"}
@@ -113,7 +113,9 @@ def recieve_message(room_id: str):
     if response.status_code == 200:
         data = response.json()
         print(data)
-        if data["to_text"] == st.session_state.username_doc:
+
+        print(data["text"])
+        if data["text"] not in st.session_state.generated_dooc:
             st.session_state["generated_dooc"].append(data["text"])
 
 

@@ -120,7 +120,7 @@ def make_chat_request(
 
 
 def recieve_message(room_id: str):
-    url = f"http://127.0.0.1:8000/latest_message/{room_id}"
+    url = f"http://127.0.0.1:8000/latest_message/{room_id}?from_text={st.session_state.doctorname}"
 
     payload = {}
     headers = {"accept": "application/json"}
@@ -129,8 +129,7 @@ def recieve_message(room_id: str):
     if response.status_code == 200:
         data = response.json()
         print(data)
-
-        if data["to_text"] == st.session_state.username_patient:
+        if data["text"] not in st.session_state.generated:
             st.session_state["generated"].append(data["text"])
 
 

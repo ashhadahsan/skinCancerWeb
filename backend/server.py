@@ -89,28 +89,51 @@ def create_chat(chat: ChatModel):
     return {"message": "Chat created successfully", "chat_id": str(result.inserted_id)}
 
 
+from typing import Optional
+
+
 @app.get("/latest_message/{room_id}")
-def get_latest_message(room_id: str):
+def get_latest_message(room_id: str, from_text: Optional[str] = None):
     collection = db[room_id]
-    message = collection.find_one({}, sort=[("_id", -1)])
-    try:
-        return {
-            "text": loads(dumps(message))["text"],
-            "from_text": loads(dumps(message))["from_text"],
-            "to_text": loads(dumps(message))["to_text"],
-        }
-    except Exception:
+
+    query = {}
+    if from_text:
+        query["from_text"] = from_text
+
+    message = collection.find_one(query, sort=[("_id", -1)])
+
+    if message is None:
         raise HTTPException(status_code=404, detail={"no messages": True})
 
-    # try:
-    #     print(loads(dumps(message)))
-    #     message = loads(dumps(message))["text"]
-    #     from_text = loads(dumps(message))["from_text"]
-    #     to_text = loads(dumps(message))["to_text"]
-    #     print(message)
-    #     return {"text": message, "from_text": from_text, "to_text": to_text}
-    # except Exception as e:
-    #     raise HTTPException(404, detail=e)
+    return {
+        "text": message["text"],
+        "from_text": message["from_text"],
+        "to_text": message["to_text"],
+    }
+
+
+# @app.get("/latest_message/{room_id}")
+# def get_latest_message(room_id: str):
+#     collection = db[room_id]
+#     message = collection.find_one({}, sort=[("_id", -1)])
+#     try:
+#         return {
+#             "text": loads(dumps(message))["text"],
+#             "from_text": loads(dumps(message))["from_text"],
+#             "to_text": loads(dumps(message))["to_text"],
+#         }
+#     except Exception:
+#         raise HTTPException(status_code=404, detail={"no messages": True})
+
+# try:
+#     print(loads(dumps(message)))
+#     message = loads(dumps(message))["text"]
+#     from_text = loads(dumps(message))["from_text"]
+#     to_text = loads(dumps(message))["to_text"]
+#     print(message)
+#     return {"text": message, "from_text": from_text, "to_text": to_text}
+# except Exception as e:
+#     raise HTTPException(404, detail=e)
 
 
 # @app.put("/update_accepted_status")

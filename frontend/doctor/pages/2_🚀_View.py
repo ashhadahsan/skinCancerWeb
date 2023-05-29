@@ -22,7 +22,6 @@ def get_history(username: str):
     headers = {"accept": "application/json"}
 
     response = requests.request("GET", url, headers=headers, data=payload)
-    print(response.json())
 
     return response.json()
 
@@ -45,7 +44,7 @@ try:
         st.title("Appointments")
         patient = pd.DataFrame(get_patients()["patient"])
         try:
-            dataframe = pd.DataFrame(get_history(st.session_state.username)).drop(
+            dataframe = pd.DataFrame(get_history(st.session_state.username_doc)).drop(
                 ["_id", "doctor"], axis=1
             )
             dataframe.columns = ["Patient Name", "Date of Appointment"]

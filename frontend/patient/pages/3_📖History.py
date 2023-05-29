@@ -11,7 +11,7 @@ st.set_page_config(
     page_icon="🧊",
     initial_sidebar_state="expanded",
 )
-st.sidebar.success(body="View Users")
+# st.sidebar.success(body="View Users")
 remove_header_footer()
 
 
@@ -42,14 +42,20 @@ def get_doctors():
 try:
     if st.session_state.auth:
         st.title("Appointment History")
-        doctor=pd.DataFrame(get_doctors()['doctors'])
+        doctor = pd.DataFrame(get_doctors()["doctors"])
         try:
             dataframe = pd.DataFrame(get_history(st.session_state.username)).drop(
                 "_id", axis=1
             )
-            dataframe=pd.merge(left=dataframe,right=doctor,right_on="username",left_on="doctor",how='inner').drop(['patient','doctor','username'],axis=1)
-            dataframe.columns=['Date','Doctor']
-            dataframe=dataframe[['Doctor','Date']]
+            dataframe = pd.merge(
+                left=dataframe,
+                right=doctor,
+                right_on="username",
+                left_on="doctor",
+                how="inner",
+            ).drop(["patient", "doctor", "username"], axis=1)
+            dataframe.columns = ["Date", "Doctor"]
+            dataframe = dataframe[["Doctor", "Date"]]
             hide_table_row_index = """
                 <style>
                 thead tr th:first-child {display:none}
@@ -73,4 +79,4 @@ try:
 except AttributeError as w:
     pass
     # st.warning("You must be logged in to see this page")
-    # switch_page("d")
+    switch_page("dashboard")

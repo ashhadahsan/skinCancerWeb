@@ -60,8 +60,8 @@ if "auth" not in st.session_state:
 if "loggedin" not in st.session_state:
     st.session_state.loggedin = False
 
-if "username" not in st.session_state:
-    st.session_state.username = None
+if "username_patient" not in st.session_state:
+    st.session_state.username_patient = None
 
 hide_bar = """
     <style>
@@ -98,11 +98,12 @@ if st.session_state["loggedin"] == False:
                             </style>
                             """
                 st.markdown(hide_st_style, unsafe_allow_html=True)
-                st.session_state.username = username
+                st.session_state.username_patient = username
                 switch_page("book")
                 if st.sidebar.button("Logout"):
                     st.session_state["loggedin"] = None
                     st.session_state.auth = False
+                    st.session_state.username_patient = ""
 
             else:
                 st.session_state.auth = False

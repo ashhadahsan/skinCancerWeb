@@ -22,18 +22,55 @@ if "ready" not in st.session_state:
     st.session_state["ready"] = False
 if "user_input" not in st.session_state:
     st.session_state.user_input = None
-if "generated" not in st.session_state:
-    st.session_state["generated"] = ["Hi"]
-if "past" not in st.session_state:
-    st.session_state["past"] = ["Hello"]
+if "generated_dooc" not in st.session_state:
+    st.session_state["generated_dooc"] = ["Hi Doctor"]
+if "past_doc" not in st.session_state:
+    st.session_state["past_doc"] = ["Hello Patient"]
 if "chat_room_id" not in st.session_state:
     st.session_state["chat_room_id"] = ""
 if "to" not in st.session_state:
     st.session_state.to = ""
 
 
+import threading
+
+# Rest of the code...
+
+# Create a flag to control the background thread
+if "background_thread" not in st.session_state:
+    st.session_state["background_thread"] = None
+
+
+def start_background_thread(room_id):
+    """
+    Function to start the background thread that continuously checks for new messages.
+    """
+    if (
+        st.session_state["background_thread"] is None
+        or not st.session_state["background_thread"].is_alive()
+    ):
+        # Create a new thread and start it
+        st.session_state["background_thread"] = threading.Thread(
+            target=background_task(room_id=room_id)
+        )
+        st.session_state["background_thread"].start()
+
+
+import time
+
+
+def background_task(room_id):
+    """
+    Background task function that continuously calls the recieve_message() function.
+    """
+    while True:
+        time.sleep(5)
+        if st.session_state.auth and st.session_state.ready:
+            recieve_message(room_id=room_id)
+
+
 def get_chat_requests():
-    url = f"http://127.0.0.1:8000/chatrequest/today/{st.session_state.username}"
+    url = f"http://127.0.0.1:8000/chatrequest/today/{st.session_state.username_doc}"
 
     payload = {}
     headers = {"accept": "application/json"}
@@ -75,8 +112,9 @@ def recieve_message(room_id: str):
     response = requests.request("GET", url, headers=headers, data=payload)
     if response.status_code == 200:
         data = response.json()
-        if data["to_text"] == st.session_state.username:
-            st.session_state["generated"].append(data["text"])
+        print(data)
+        if data["to_text"] == st.session_state.username_doc:
+            st.session_state["generated_dooc"].append(data["text"])
 
 
 def send_message(from_text, to_text, text, room_id):
@@ -90,12 +128,11 @@ def send_message(from_text, to_text, text, room_id):
     response = requests.request("POST", url, headers=headers, data=payload)
 
     if response.status_code == 200:
-        st.session_state["past"].append(text)
+        st.session_state["past_doc"].append(text)
 
 
 def chat():
     response_container = st.container()
-    recieve_message(st.session_state.chat_room_id)
 
     # container for text box
     empty = st.empty()
@@ -109,32 +146,33 @@ def chat():
     if user_input:
         with st.spinner(text=""):
             send_message(
-                from_text=st.session_state.username,
+                from_text=st.session_state.username_doc,
                 to_text=st.session_state.to,
                 text=user_input,
                 room_id=st.session_state["chat_room_id"],
             )
             recieve_message(st.session_state.chat_room_id)
 
-    if st.session_state["generated"]:
+    if st.session_state["generated_dooc"]:
         with response_container:
-            for i in range(len(st.session_state["past"])):
+            for i in range(len(st.session_state["past_doc"])):
                 message(
-                    st.session_state["past"][i],
+                    st.session_state["past_doc"][i],
                     is_user=True,
                     key=str(i) + "_user",
                     avatar_style="thumbs",
                     allow_html=True,
                 )
-            for i in range(len(st.session_state["generated"])):
+            for i in range(len(st.session_state["generated_dooc"])):
                 message(
-                    st.session_state["generated"][i],
+                    st.session_state["generated_dooc"][i],
                     key=str(i),
                     avatar_style="bottts",
                     allow_html=True,
                 )
 
 
+room_id = ""
 styles = {
     "material-icons": {"color": "red"},
     "text-icon-link-close-container": {
@@ -164,11 +202,18 @@ try:
             except:
                 pass
         if st.session_state.ready:
+            # send_message(
+            #     from_text=st.session_state.username,
+            #     to_text=st.session_state.to,
+            #     text="Hello Patient",
+            #     room_id=st.session_state["chat_room_id"],
+            # )
+
             chat()
-            # if "generated" not in st.session_state:
-            #     st.session_state["generated"] = ["Hello"]
-            # if "past" not in st.session_state:
-            #     st.session_state["past"] = ["Hi"]
+            # if "generated_dooc" not in st.session_state:
+            #     st.session_state["generated_dooc"] = ["Hello"]
+            # if "past_doc" not in st.session_state:
+            #     st.session_state["past_doc"] = ["Hi"]
 
         # for x in patient:
         #     custom_notification_box(

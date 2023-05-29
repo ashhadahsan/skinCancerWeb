@@ -12,7 +12,7 @@ st.set_page_config(
     page_icon="🧊",
     initial_sidebar_state="expanded",
 )
-st.sidebar.success(body="View Users")
+# st.sidebar.success(body="View Users")
 remove_header_footer()
 from pathlib import Path
 
@@ -128,8 +128,9 @@ def recieve_message(room_id: str):
     response = requests.request("GET", url, headers=headers, data=payload)
     if response.status_code == 200:
         data = response.json()
+        print(data)
 
-        if data["to_text"] == st.session_state.username:
+        if data["to_text"] == st.session_state.username_patient:
             st.session_state["generated"].append(data["text"])
 
 
@@ -139,6 +140,7 @@ def send_message(from_text, to_text, text, room_id):
     payload = json.dumps(
         {"from_text": from_text, "to_text": to_text, "text": text, "room_id": room_id}
     )
+    print(payload)
     headers = {"accept": "application/json", "Content-Type": "application/json"}
 
     response = requests.request("POST", url, headers=headers, data=payload)
@@ -159,7 +161,7 @@ def chat():
     if user_input:
         with st.spinner(text=""):
             send_message(
-                from_text=st.session_state.username,
+                from_text=st.session_state.username_patient,
                 to_text=st.session_state.doctorname,
                 text=user_input,
                 room_id=st.session_state["chat_room_id"],
@@ -182,6 +184,7 @@ def chat():
                     key=str(i),
                     avatar_style="bottts",
                     allow_html=True,
+                    is_user=False,
                 )
 
 
@@ -196,6 +199,7 @@ try:
         if st.sidebar.button("Logout"):
             st.session_state["loggedin"] = False
             st.session_state.auth = None
+            st.session_state.check = False
 
             switch_page("dashboard")
 
@@ -235,11 +239,12 @@ try:
                             )
 
                             doctorusername = get_all_docs_username()
-                            st.session_state.doctorname = doctorusername
+                            # st.session_state.doctorname = doctorusername
                             doctorname = doctorusername[index]
+                            st.session_state.doctorname = doctorname
                             if st.button("Book Appointment"):
                                 book_appointment(
-                                    patient=st.session_state.username,
+                                    patient=st.session_state.username_patient,
                                     doctorname=doctorname,
                                     date=str(selected_Date),
                                 )
@@ -259,7 +264,7 @@ try:
                                 st.session_state.chat_room_id = str(uuid.uuid1())
 
                                 if make_chat_request(
-                                    patient=st.session_state.username,
+                                    patient=st.session_state.username_patient,
                                     doc=doctorname,
                                     chat_room_id=st.session_state.chat_room_id,
                                 ):
@@ -269,7 +274,7 @@ try:
                                         )
                                         # time.sleep(10)
                                         if st.session_state.check:
-                                            st.write(st.session_state.check)
+                                            # st.write(st.session_state.check)
                                             break
                                         else:
                                             print("no")
@@ -281,15 +286,22 @@ try:
                     st.info("You are healthy and do not need any appointments")
         if st.session_state.check == True:
             if "generated" not in st.session_state:
-                st.session_state["generated"] = ["Hello"]
-                st.session_state["past"] = ["Hi"]
+                st.session_state["generated"] = ["Hello Patient"]
+                st.session_state["past"] = ["Hi Doctor"]
             # if "past" not in st.session_state:
             #     st.session_state["past"] = ["Hi"]
+
+            # send_message(
+            #     from_text=st.session_state.username,
+            #     to_text=st.session_state.doctorname,
+            #     text="Hi Doctor",
+            #     room_id=st.session_state["chat_room_id"],
+            # )
 
             chat()
 
 
 except AttributeError as w:
-    pass
+    st.exception(w)
     # st.warning("You must be logged in to see this page")
-    # switch_page("d")
+    # switch_page("dashboard")

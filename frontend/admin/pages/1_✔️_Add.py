@@ -4,13 +4,8 @@ import requests
 import json
 from utils.ui import header, remove_header_footer
 import os
-import boto3
-from pathlib import Path
 
-# from utils.firebase import bucket
-from utils.helpers import get_url
 from streamlit_extras.switch_page_button import switch_page
-from typing import List
 
 st.set_page_config(
     layout="wide",

@@ -2,7 +2,7 @@ import streamlit as st
 
 import requests
 import pandas as pd
-from utils.ui import header, remove_header_footer
+from utils.ui import remove_header_footer
 from streamlit_extras.switch_page_button import switch_page
 
 st.set_page_config(

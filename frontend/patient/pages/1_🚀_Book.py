@@ -1,10 +1,10 @@
 import streamlit as st
 
 import requests
-import pandas as pd
-from utils.ui import header, remove_header_footer
+from utils.ui import remove_header_footer
 from streamlit_extras.switch_page_button import switch_page
 from streamlit_chat import message
+import threading
 
 st.set_page_config(
     layout="wide",
@@ -26,6 +26,39 @@ if "chat_room_id" not in st.session_state:
     st.session_state["chat_room_id"] = ""
 if "doctorname" not in st.session_state:
     st.session_state["doctorname"] = ""
+
+
+# Create a flag to control the background thread
+if "background_thread" not in st.session_state:
+    st.session_state["background_thread"] = None
+
+
+def start_background_thread(room_id, from_text):
+    """
+    Function to start the background thread that continuously checks for new messages.
+    """
+    if (
+        st.session_state["background_thread"] is None
+        or not st.session_state["background_thread"].is_alive()
+    ):
+        # Create a new thread and start it
+        st.session_state["background_thread"] = threading.Thread(
+            target=background_task(room_id=room_id, from_text=from_text)
+        )
+        st.session_state["background_thread"].start()
+
+
+import time
+
+
+def background_task(room_id, from_text):
+    """
+    Background task function that continuously calls the recieve_message() function.
+    """
+    while True:
+        time.sleep(5)
+        if st.session_state.auth and st.session_state.ready:
+            recieve_message(room_id=room_id, from_text=from_text)
 
 
 def check_cancer(img_path):
@@ -133,8 +166,8 @@ def make_chat_request(
 #             st.session_state["generated"].append(data["text"])
 
 
-def recieve_message(room_id: str):
-    url = f"http://localhost:8000/messages/{room_id}/{st.session_state.doctorname}"
+def recieve_message(room_id: str, from_text: str):
+    url = f"http://localhost:8000/messages/{room_id}/{from_text}"
 
     payload = {}
     headers = {"accept": "application/json"}
@@ -163,6 +196,9 @@ def send_message(from_text, to_text, text, room_id):
         st.session_state["past"].append(text)
 
 
+from itertools import zip_longest
+
+
 def chat():
     response_container = st.container()
 
@@ -179,24 +215,33 @@ def chat():
                 text=user_input,
                 room_id=st.session_state["chat_room_id"],
             )
-            recieve_message(st.session_state.chat_room_id)
+            # recieve_message(st.session_state.chat_room_id)
 
     if st.session_state["generated"]:
         with response_container:
-            for i in range(len(st.session_state["past"])):
-                message(
-                    st.session_state["past"][i],
-                    is_user=True,
-                    key=str(i) + "_user",
-                    avatar_style="thumbs",
+            for (
+                i,
+                (x, y),
+            ) in enumerate(
+                zip_longest(
+                    st.session_state["past"],
+                    st.session_state.generated,
+                    fillvalue=None,
                 )
-            for i in range(len(st.session_state["generated"])):
-                message(
-                    st.session_state["generated"][i],
-                    key=str(i),
-                    avatar_style="bottts",
-                    is_user=False,
-                )
+            ):
+                if x is not None:
+                    message(
+                        x,
+                        is_user=True,
+                        key=str(i) + "_user",
+                        avatar_style="thumbs",
+                    )
+                if y is not None:
+                    message(
+                        y,
+                        key=str(i),
+                        avatar_style="bottts",
+                    )
 
 
 if "check" not in st.session_state:
@@ -310,6 +355,9 @@ try:
             # )
 
             chat()
+            start_background_thread(
+                st.session_state["chat_room_id"], st.session_state.doctorname
+            )
 
 
 except AttributeError as w:

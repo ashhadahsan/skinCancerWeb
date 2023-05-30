@@ -2,7 +2,7 @@ import streamlit as st
 
 import requests
 import pandas as pd
-from utils.ui import header, remove_header_footer
+from utils.ui import remove_header_footer
 from streamlit_extras.switch_page_button import switch_page
 
 st.set_page_config(
@@ -40,6 +40,7 @@ def get_patients():
     else:
         return False
 
+
 def get_appointments():
     url = "http://127.0.0.1:8000/appointments"
 
@@ -56,7 +57,7 @@ try:
         st.title("Appointments")
         doctor = pd.DataFrame(get_doctors()["doctors"])
         appointments = pd.DataFrame(get_appointments())
-        patients=pd.DataFrame(get_patients()['patient'])
+        patients = pd.DataFrame(get_patients()["patient"])
         try:
             df = pd.merge(
                 left=doctor,
@@ -65,13 +66,14 @@ try:
                 right_on="doctor",
                 how="inner",
             ).drop(["username", "_id", "doctor"], axis=1)
-            
+
             df.columns = ["Doctor Name", "Patients", "Date"]
-            df=pd.merge(df,patients,left_on="Patients",right_on="username").drop(['username','Patients'],axis=1)
-            df.columns=['Doctor Name','Date','Patient Name']
-            df=df[['Doctor Name','Patient Name','Date']]
-            
-            
+            df = pd.merge(df, patients, left_on="Patients", right_on="username").drop(
+                ["username", "Patients"], axis=1
+            )
+            df.columns = ["Doctor Name", "Date", "Patient Name"]
+            df = df[["Doctor Name", "Patient Name", "Date"]]
+
             hide_table_row_index = """
                 <style>
                 thead tr th:first-child {display:none}

@@ -1,16 +1,6 @@
-awswrangler==3.0.0
-boto3==1.26.59
-botocore==1.29.115
-firebase_admin==6.1.0
-langchain==0.0.154
-matplotlib==3.7.1
 pandas==1.5.3
 Requests==2.29.0
-seaborn==0.12.2
 streamlit==1.22.0
-streamlit_chat_media==0.0.4
-openpyxl
-sqlalchemy
-openai
+streamlit_chat
 streamlit-extras
 

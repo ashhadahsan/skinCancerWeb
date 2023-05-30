@@ -1,8 +1,7 @@
 import streamlit as st
 
 import requests
-import pandas as pd
-from utils.ui import header, remove_header_footer
+from utils.ui import remove_header_footer
 from streamlit_extras.switch_page_button import switch_page
 
 st.set_page_config(
@@ -14,8 +13,6 @@ st.set_page_config(
 # st.sidebar.success(body="View Users")
 remove_header_footer()
 from streamlit_chat import message
-
-from streamlit_custom_notification_box import custom_notification_box
 
 
 if "ready" not in st.session_state:
@@ -34,14 +31,13 @@ if "to" not in st.session_state:
 
 import threading
 
-# Rest of the code...
 
 # Create a flag to control the background thread
 if "background_thread" not in st.session_state:
     st.session_state["background_thread"] = None
 
 
-def start_background_thread(room_id):
+def start_background_thread(room_id, from_text):
     """
     Function to start the background thread that continuously checks for new messages.
     """
@@ -51,7 +47,7 @@ def start_background_thread(room_id):
     ):
         # Create a new thread and start it
         st.session_state["background_thread"] = threading.Thread(
-            target=background_task(room_id=room_id)
+            target=background_task(room_id=room_id, from_text=from_text)
         )
         st.session_state["background_thread"].start()
 
@@ -59,14 +55,14 @@ def start_background_thread(room_id):
 import time
 
 
-def background_task(room_id):
+def background_task(room_id, from_text):
     """
     Background task function that continuously calls the recieve_message() function.
     """
     while True:
         time.sleep(5)
         if st.session_state.auth and st.session_state.ready:
-            recieve_message(room_id=room_id)
+            recieve_message(room_id=room_id, from_text=from_text)
 
 
 def get_chat_requests():
@@ -118,9 +114,13 @@ def accept_request(
 #         if data["text"] not in st.session_state.generated_dooc:
 #             st.session_state["generated_dooc"].append(data["text"])
 
+from typing import Optional
 
-def recieve_message(room_id: str):
-    url = f"http://localhost:8000/messages/{room_id}/{st.session_state.to}"
+
+def recieve_message(room_id: str, from_text: str):
+    print(from_text, room_id)
+    url = f"http://localhost:8000/messages/{room_id}/{from_text}"
+    print(url)
 
     payload = {}
     headers = {"accept": "application/json"}
@@ -148,6 +148,9 @@ def send_message(from_text, to_text, text, room_id):
         st.session_state["past_doc"].append(text)
 
 
+from itertools import zip_longest
+
+
 def chat():
     response_container = st.container()
 
@@ -164,26 +167,37 @@ def chat():
                 text=user_input,
                 room_id=st.session_state["chat_room_id"],
             )
-            recieve_message(st.session_state.chat_room_id)
+            # recieve_message(
+            #     st.session_state.chat_room_id, from_text=st.session_state.to
+            # )
 
     if st.session_state["generated_dooc"]:
         with response_container:
-            for i in range(len(st.session_state["past_doc"])):
-                message(
-                    st.session_state["past_doc"][i],
-                    is_user=True,
-                    key=str(i) + "_user",
-                    avatar_style="thumbs",
+            for (
+                i,
+                (x, y),
+            ) in enumerate(
+                zip_longest(
+                    st.session_state["past_doc"],
+                    st.session_state.generated_dooc,
+                    fillvalue=None,
                 )
-            for i in range(len(st.session_state["generated_dooc"])):
-                message(
-                    st.session_state["generated_dooc"][i],
-                    key=str(i),
-                    avatar_style="bottts",
-                )
+            ):
+                if x is not None:
+                    message(
+                        x,
+                        is_user=True,
+                        key=str(i) + "_user",
+                        avatar_style="thumbs",
+                    )
+                if y is not None:
+                    message(
+                        y,
+                        key=str(i),
+                        avatar_style="bottts",
+                    )
 
 
-room_id = ""
 styles = {
     "material-icons": {"color": "red"},
     "text-icon-link-close-container": {
@@ -201,6 +215,8 @@ try:
         index = st.selectbox(
             "Doctor", range(len(patient)), format_func=lambda x: patient[x]
         )
+        # global room_id
+        # global patient_name
 
         if st.button("Accept"):
             try:
@@ -221,6 +237,9 @@ try:
             # )
 
             chat()
+            start_background_thread(
+                room_id=st.session_state.chat_room_id, from_text=st.session_state.to
+            )
             # if "generated_dooc" not in st.session_state:
             #     st.session_state["generated_dooc"] = ["Hello"]
             # if "past_doc" not in st.session_state:
@@ -243,5 +262,4 @@ try:
 
 
 except AttributeError as e:
-    st.exception(e)
-    st.warning("You must be logged in to see this page")
+    switch_page("dashboard")
